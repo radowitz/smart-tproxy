@@ -1,6 +1,13 @@
 # smart-tproxy
 
-## 控制面板
+在 Debian 上使用 Docker 快速部署一个 TPROXY 透明代理
+ - 基于 chnroute 进行国内外 IP 分流
+ - 基于 smartdns 进行国内外 DNS 分流
+ - 基于 Clash-Meta 的 sniff 嗅探功能进行策略组分流（RULESET+GEOSITE+GEOIP）
+
+
+
+### 控制面板
 
   访问地址
 
@@ -14,7 +21,7 @@
 
         smart-tproxy
 
-## 安装步骤
+### 安装步骤
 
 1. 开启内核转发和BBR CAKE，替换国内源（北外源）并安装 docker
 

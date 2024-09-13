@@ -5,22 +5,6 @@
  - 基于 smartdns 进行国内外 DNS 分流
  - 基于 Clash-Meta 的 sniff 嗅探功能进行策略组分流（RULESET+GEOSITE+GEOIP）
 
-
-
-### 控制面板
-
-  访问地址
-
-        http://IP:28002
-
-  连接的后端为
-
-        http://IP:28001
-
-  密码
-
-        smart-tproxy
-
 ### 安装步骤
 
 1. 开启内核转发和BBR CAKE，替换国内源（北外源）并安装 docker
@@ -67,3 +51,21 @@
     5.4 启动服务（或者重启系统）
     
         systemctl start chnroute-load.service
+
+
+   
+
+### 控制面板
+
+  访问地址
+
+        http://IP:28002
+
+  后端地址：
+
+        http://IP:28001
+
+  后端密码：
+
+        smart-tproxy
+

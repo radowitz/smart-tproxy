@@ -1,0 +1,41 @@
+# version: '3'
+services:
+  smartdns:
+    image: pymumu/smartdns:latest
+    container_name: smartdns
+    restart: always
+    ports:
+      - "53:53/udp"
+      - "53:53/tcp"
+    volumes:
+      - ./smartdns:/etc/smartdns
+
+  meta:
+    container_name: clash-meta
+    image: metacubex/mihomo:Alpha
+    restart: always
+    pid: host
+    ipc: host
+    network_mode: host
+    cap_add:
+      - ALL
+    security_opt:
+      - apparmor=unconfined
+    volumes:
+      - ./meta:/root/.config/mihomo
+      # 共享host的时间环境
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+
+  metacubexd:
+    container_name: metacubexd
+    image: ghcr.io/metacubex/metacubexd
+    restart: always
+    network_mode: bridge
+    ports:
+      - "28002:80"
+    volumes:
+      - ./metacubexd:/config/caddy
+      # 共享host的时间环境
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro

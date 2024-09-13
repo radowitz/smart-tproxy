@@ -1,0 +1,279 @@
+# 分组
+pr:
+  &pr {
+    type: select,
+    proxies:
+      [
+        Selected,
+        HK,
+        TW,
+        JP,
+        SG,
+        US,
+        ELSE,
+        ALL,
+        Url-test,
+        DIRECT,
+      ],
+  }
+# 延迟检测 URL
+p: &p
+  type: http
+  # 自动更新订阅时间，单位为秒
+  interval: 3600
+  health-check:
+    enable: true
+    url: https://cp.cloudflare.com
+    # 节点连通性检测时间，单位为秒
+    interval: 300
+    # 节点超时延迟，单位为毫秒
+    timeout: 1000
+    # 节点自动切换差值，单位为毫秒
+    tolerance: 100
+
+# 基础配置
+# --------------------------------------------------
+# 如果你需要使用大于两个机场，在下方 `use` 处添加 `Sub3` （名字可以自己取），然后在 `proxy-providers` 照例添加订阅链接即可
+# 反之，如果你只需要使用一个，那么将 `Sub2` 前添加 `#` 进行注释即可
+
+# 订阅名，记得修改成自己的
+# 添删订阅在这里和下方订阅链接依葫芦画瓢就行
+use: &use
+  type: select
+  # type: url-test
+  use:
+    - Sub1
+    - Sub2
+    # - Local
+
+# 订阅链接
+# 本地配置可以只填 path
+proxy-providers:
+  Sub1:
+    <<: *p
+    path: ./proxy_provider/Sub1.yaml
+    url: "https://example.com/airport?type=clashmeta&protocol=shadowsocks&rule=default"
+
+  Sub2:
+    <<: *p
+    path: ./proxy_provider/Sub2.yaml
+    url: "https://example.com/api/v1/client/subscribe?token=ilovechina"
+
+  # Local:
+    # <<: *p
+    # path: ./proxy_provider/Local.yaml
+
+# 小白请不要继续随意修改以下设置
+# 若需修改请参阅文档 https://wiki.metacubex.one
+# --------------------------------------------------
+
+# 规则订阅
+rule-providers:
+  # anti-AD 广告拦截规则
+  # https://github.com/privacy-protection-tools/anti-AD
+  # 如果误杀率高请自行更换
+  anti-AD:
+    type: http
+    behavior: domain
+    format: yaml
+    path: ./rule_provider/anti-AD.yaml
+    url: "https://raw.githubusercontents.com/privacy-protection-tools/anti-AD/master/anti-ad-clash.yaml"
+    interval: 600
+  # anti-AD 白名单规则
+  anti-AD-white:
+    type: http
+    behavior: domain
+    format: yaml
+    path: ./rule_provider/anti-AD-white.yaml
+    url: "https://raw.githubusercontents.com/privacy-protection-tools/dead-horse/master/anti-ad-white-for-clash.yaml"
+    interval: 600
+  disney:
+    type: http
+    behavior: domain
+    format: yaml
+    path: ./rule_provider/disney.yaml
+    url: "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Disney/Disney.yaml"
+    interval: 600
+
+mode: rule
+# ipv6 支持
+ipv6: true
+log-level: info
+# 允许局域网连接
+allow-lan: true
+# socks5/http 端口
+mixed-port: 7890
+tproxy-port: 7893
+# Meta 内核特性 https://wiki.metacubex.one/config/general
+# 统一延迟
+# 更换延迟计算方式,去除握手等额外延迟
+unified-delay: true
+# TCP 并发
+# 同时对所有ip进行连接，返回延迟最低的地址
+tcp-concurrent: true
+# 外部控制
+external-controller: 0.0.0.0:28001
+secret: smartmeta
+
+geodata-mode: true
+
+# Geo 数据库下载地址
+# 使用 FastGit 代理 (https://fgit.cf)
+# 源地址 https://github.com/MetaCubeX/meta-rules-dat
+# 可以更换镜像站但不要更换其他数据库，可能导致无法启动
+geox-url:
+  geoip: "https://hub.gitmirror.com/https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.dat"
+  geosite: "https://hub.gitmirror.com/https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geosite.dat"
+  mmdb: "https://hub.gitmirror.com/https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/country.mmdb"
+
+# 进程匹配模式
+# 路由器上请设置为 off
+# always 开启，强制匹配所有进程
+# strict 默认，由 Clash 判断是否开启
+# off 不匹配进程，推荐在路由器上使用此模式
+find-process-mode: off
+
+# 全局客户端指纹
+global-client-fingerprint: random # 随机指纹
+
+# 缓存
+profile:
+  store-selected: true
+
+# 自动同步时间以防止时间不准导致无法正常联网
+ntp:
+  enable: true
+  # 是否同步至系统时间，需要 root/管理员权限
+  write-to-system: false
+  server: time.apple.com
+  port: 123
+  interval: 30
+
+# 域名嗅探
+sniffer:
+  enable: true
+  sniff:
+    TLS:
+      ports: [443, 8443]
+    HTTP:
+      ports: [80, 8080-8880]
+      override-destination: true
+  skip-domain:
+    - "Mijia Cloud"  
+
+# 多入站端口设置
+# listeners:
+#   - name: hk
+#     type: mixed
+#     port: 12991
+#     proxy: 香港
+
+#   - name: tw
+#     type: mixed
+#     port: 12992
+#     proxy: 台湾
+
+#   - name: sg
+#     type: mixed
+#     port: 12993
+#     proxy: 新加坡
+
+proxies:
+  # - name: "WARP"
+  #   type: wireguard
+  #   server: engage.cloudflareclient.com
+  #   port: 2408
+  #   ip: "172.16.0.2/32"
+  #   ipv6: "2606::1/128"        # 自行替换
+  #   private-key: "private-key" # 自行替换
+  #   public-key: "public-key"   # 自行替换
+  #   udp: true
+  #   reserved: "abba"           # 自行替换
+  #   mtu: 1280
+  #   dialer-proxy: "WARP前置"
+  #   remote-dns-resolve: true
+  #   dns:
+  #     - https://dns.cloudflare.com/dns-query
+
+proxy-groups:
+  # 使用 WARP 的用户需要手动在下方的 proxies 字段内添加 WARP
+  # 例如 [WARP, 全部节点, 自动选择, 香港, 台湾, 日本, 新加坡, 美国, 其它地区, DIRECT],
+  - {
+      name: Selected,
+      type: select,
+      proxies:
+        [ALL, Url-test, HK, TW, JP, SG, US, ELSE, DIRECT],
+    }
+
+  # WARP 配置链式出站
+  # - { name: WARP前置, <<: *pr, exclude-type: "wireguard" }
+
+  - { name: Anti-AD, type: select, proxies: [REJECT, DIRECT, Selected] }
+  - { name: OpenAI, <<: *pr }
+  - { name: Apple, <<: *pr }
+  - { name: Google, <<: *pr }
+  - { name: Telegram, <<: *pr }
+  - { name: Twitter, <<: *pr }
+  - { name: Pixiv, <<: *pr }
+  - { name: ehentai, <<: *pr }
+  - { name: YouTube, <<: *pr }
+  - { name: NETFLIX, <<: *pr }
+  - { name: Disney+, <<: *pr }
+  - { name: Spotify, <<: *pr }
+  - { name: Github, <<: *pr }
+  - { name: Steam, <<: *pr }
+  - { name: OneDrive, <<: *pr }
+  - { name: Microsoft, <<: *pr }
+
+  # 其他就是所有规则没匹配到的
+  # 可以理解为 ACL4SSR 配置里的 漏网之鱼
+  # 换言之，其他走代理就是绕过中国大陆地址，不走就是 GFWList 模式
+  - { name: Others, <<: *pr }
+
+  # 分隔,下面是地区分组
+  - { name: HK, <<: *use, filter: "(?i)港|hk|hongkong|hong kong" }
+  - { name: TW, <<: *use, filter: "(?i)台|tw|taiwan" }
+  - { name: JP, <<: *use, filter: "(?i)日本|jp|japan" }
+  - { name: US, <<: *use, filter: "(?i)美|us|unitedstates|united states" }
+  - { name: SG, <<: *use, filter: "(?i)(新|sg|singapore)" }
+  - {
+      name: ELSE,
+      <<: *use,
+      filter: "(?i)^(?!.*(?:🇭🇰|🇯🇵|🇺🇸|🇸🇬|🇨🇳|港|hk|hongkong|台|tw|taiwan|日|jp|japan|新|sg|singapore|美|us|unitedstates)).*",
+    }
+  - { name: ALL, <<: *use }
+  - { name: Url-test, <<: *use, tolerance: 2, type: url-test }
+
+rules:
+  # 若需禁用 QUIC 请取消注释 QUIC 两条规则
+  # 防止 YouTube 等使用 QUIC 导致速度不佳, 禁用 443 端口 UDP 流量（不包括国内）
+
+# - AND,(AND,(DST-PORT,443),(NETWORK,UDP)),(NOT,((GEOSITE,cn))),REJECT # quic
+  - AND,((RULE-SET,anti-AD),(NOT,((RULE-SET,anti-AD-white)))),Anti-AD
+  - RULE-SET,disney,Disney+
+  - GEOSITE,openai,OpenAI
+  - GEOSITE,apple,Apple
+  - GEOSITE,apple-cn,Apple
+  - GEOSITE,ehentai,ehentai
+  - GEOSITE,github,Github
+  - GEOSITE,twitter,Twitter
+  - GEOSITE,youtube,YouTube
+  - GEOSITE,google,Google
+  - GEOSITE,google-cn,Google # Google CN 不走代理会导致香港等地区节点 Play Store 异常
+  - GEOSITE,telegram,Telegram
+  - GEOSITE,netflix,NETFLIX
+  - GEOSITE,spotify,Spotify
+  - GEOSITE,pixiv,Pixiv
+  - GEOSITE,steam@cn,DIRECT
+  - GEOSITE,steam,Steam
+  - GEOSITE,onedrive,OneDrive
+  - GEOSITE,microsoft,Microsoft
+  - GEOSITE,geolocation-!cn,Others
+# - AND,(AND,(DST-PORT,443),(NETWORK,UDP)),(NOT,((GEOIP,CN))),REJECT # quic
+  - GEOIP,google,Google
+  - GEOIP,netflix,NETFLIX
+  - GEOIP,telegram,Telegram
+  - GEOIP,twitter,Twitter
+  - GEOSITE,CN,DIRECT
+  - GEOIP,CN,DIRECT
+  - MATCH,Others

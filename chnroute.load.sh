@@ -18,3 +18,4 @@ iptables -t mangle -A clash -m set --match-set chnroute dst -j RETURN
 iptables -t mangle -A clash -p udp -j TPROXY --on-port 7893 --tproxy-mark 1
 iptables -t mangle -A clash -p tcp -j TPROXY --on-port 7893 --tproxy-mark 1
 iptables -t mangle -A PREROUTING -j clash
+iptables -t nat -A POSTROUTING -o ens192 -j MASQUERADE

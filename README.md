@@ -21,12 +21,17 @@
         docker compose up -d
    
 5. systemd服务文件管理chnroute载入和iptables
+   
+    5.1 修改 `chnroute.load.sh` 中最后一条自己的网络接口名
 
-    5.1 使脚本可执行
+       nano chnroute.load.sh
+   比如将 `ens192` 修改为 `eth0` ，可通过 `ip -a` 查看接口名
+
+    5.2 使脚本可执行
 
         chmod +x chnroute.load.sh
         
-    5.2 创建 systemd 服务文件
+    5.3 创建 systemd 服务文件
 
         nano /etc/systemd/system/chnroute-load.service  
 
@@ -44,11 +49,11 @@
   
       保存并退出编辑器
 
-    5.3 启用服务，使其在开机时自动启动
+    5.4 启用服务，使其在开机时自动启动
    
         systemctl enable chnroute-load.service
    
-    5.4 启动服务（或者重启系统）
+    5.5 启动服务（或者重启系统）
     
         systemctl start chnroute-load.service
 
@@ -57,15 +62,15 @@
 
 ### 控制面板
 
-  访问地址
+   访问地址
 
         http://IP:28002
 
-  后端地址：
+   后端地址：
 
         http://IP:28001
 
-  后端密码：
+   后端密码：
 
         smart-tproxy
 

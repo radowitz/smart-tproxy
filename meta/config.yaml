@@ -252,8 +252,13 @@ rules:
   - AND,((RULE-SET,anti-AD),(NOT,((RULE-SET,anti-AD-white)))),Anti-AD
   - RULE-SET,disney,Disney+
   - GEOSITE,openai,OpenAI
+  - GEOSITE,apple@cn,DIRECT
+  - GEOSITE,apple-cn,DIRECT
+  - GEOSITE,icloud@cn,DIRECT
+  - GEOSITE,category-games@cn,DIRECT
+  - GEOSITE,geolocation-cn,DIRECT
+  - GEOSITE,category-ads-all,REJECT
   - GEOSITE,apple,Apple
-  - GEOSITE,apple-cn,Apple
   - GEOSITE,ehentai,ehentai
   - GEOSITE,github,Github
   - GEOSITE,twitter,Twitter

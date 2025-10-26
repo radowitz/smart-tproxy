@@ -8,22 +8,22 @@ net.ipv4.tcp_congestion_control=bbr
 EOF
 sysctl --system
 
-# 替换北外源
-cat >> /etc/apt/sources.list << EOF
-# 默认注释了源码镜像以提高 apt update 速度，如有需要可自行取消注释
-deb https://mirrors.bfsu.edu.cn/debian/ bookworm main contrib non-free non-free-firmware
-# deb-src https://mirrors.bfsu.edu.cn/debian/ bookworm main contrib non-free non-free-firmware
-
-deb https://mirrors.bfsu.edu.cn/debian/ bookworm-updates main contrib non-free non-free-firmware
-# deb-src https://mirrors.bfsu.edu.cn/debian/ bookworm-updates main contrib non-free non-free-firmware
-
-deb https://mirrors.bfsu.edu.cn/debian/ bookworm-backports main contrib non-free non-free-firmware
-# deb-src https://mirrors.bfsu.edu.cn/debian/ bookworm-backports main contrib non-free non-free-firmware
-
-# 以下安全更新软件源包含了官方源与镜像站配置，如有需要可自行修改注释切换
-deb https://security.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware
-# deb-src https://security.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware
-EOF
+## 替换北外源
+#cat >> /etc/apt/sources.list << EOF
+## 默认注释了源码镜像以提高 apt update 速度，如有需要可自行取消注释
+#deb https://mirrors.bfsu.edu.cn/debian/ bookworm main contrib non-free non-free-firmware
+## deb-src https://mirrors.bfsu.edu.cn/debian/ bookworm main contrib non-free non-free-firmware
+#
+#deb https://mirrors.bfsu.edu.cn/debian/ bookworm-updates main contrib non-free non-free-firmware
+## deb-src https://mirrors.bfsu.edu.cn/debian/ bookworm-updates main contrib non-free non-free-firmware
+#
+#deb https://mirrors.bfsu.edu.cn/debian/ bookworm-backports main contrib non-free non-free-firmware
+## deb-src https://mirrors.bfsu.edu.cn/debian/ bookworm-backports main contrib non-free non-free-firmware
+#
+## 以下安全更新软件源包含了官方源与镜像站配置，如有需要可自行修改注释切换
+#deb https://security.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware
+## deb-src https://security.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware
+#EOF
 
 apt update -y
 apt-get install ca-certificates wget sudo curl ipset gnupg -y

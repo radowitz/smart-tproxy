@@ -134,6 +134,8 @@
        # 每天凌晨 3 点执行
        OnCalendar=daily
        OnCalendar=03:00
+       # 开机后 5 分钟执行一次
+       OnBootSec=5min
        # 如果错过执行时间，立即执行
        Persistent=true
        # 随机延迟 0-30 分钟，避免集中访问

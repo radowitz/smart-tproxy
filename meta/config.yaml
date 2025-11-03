@@ -123,9 +123,9 @@ geodata-mode: true
 # 源地址 https://github.com/MetaCubeX/meta-rules-dat
 # 可以更换镜像站但不要更换其他数据库，可能导致无法启动
 geox-url:
-  geoip: "https://hub.gitmirror.com/https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.dat"
-  geosite: "https://hub.gitmirror.com/https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geosite.dat"
-  mmdb: "https://hub.gitmirror.com/https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/country.mmdb"
+  geoip: "https://hk.gh-proxy.com/https://raw.githubusercontent.com/soffchen/GeoIP2-CN/release/chnroute.ipset"
+  geosite: "https://hk.gh-proxy.com/https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat"
+  mmdb: "https://hk.gh-proxy.com/https://raw.githubusercontent.com/soffchen/GeoIP2-CN/release/Country.mmdb"
 
 # 进程匹配模式
 # 路由器上请设置为 off

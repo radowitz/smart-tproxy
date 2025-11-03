@@ -10,22 +10,22 @@ BACKUP_DIR="${CHNROUTE_DIR}/backups"
 LOG_FILE="/var/log/rules-update.log"
 
 # CDN 镜像 URL（使用 hk.gh-proxy.com）
-CDN_MIRROR="https://hk.gh-proxy.com/https://github.com"
+CDN_MIRROR="https://hk.gh-proxy.com"
 
 # 下载源配置
 declare -A DOWNLOADS=(
     # GeoIP/GeoSite for Clash Meta
-    ["${CLASH_META_DIR}/GeoIP.dat"]="${CDN_MIRROR}/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.dat"
-    ["${CLASH_META_DIR}/GeoSite.dat"]="${CDN_MIRROR}/MetaCubeX/meta-rules-dat/releases/download/latest/geosite.dat"
+    ["${CLASH_META_DIR}/GeoIP.dat"]="${CDN_MIRROR}/https://raw.githubusercontents.com/soffchen/geoip/release/geoip.dat"
+    ["${CLASH_META_DIR}/GeoSite.dat"]="${CDN_MIRROR}/https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat"
 
     # SmartDNS 规则列表
-    ["${SMARTDNS_DIR}/apple.txt"]="${CDN_MIRROR}/Loyalsoldier/v2ray-rules-dat/releases/download/202501012212/apple-cn.txt"
-    ["${SMARTDNS_DIR}/cn.txt"]="${CDN_MIRROR}/Loyalsoldier/v2ray-rules-dat/releases/download/202501012212/direct-list.txt"
-    ["${SMARTDNS_DIR}/reject.txt"]="${CDN_MIRROR}/Loyalsoldier/v2ray-rules-dat/releases/download/202501012212/reject-list.txt"
-    ["${SMARTDNS_DIR}/gfw.txt"]="${CDN_MIRROR}/Loyalsoldier/v2ray-rules-dat/releases/download/202501012212/gfw.txt"
+    ["${SMARTDNS_DIR}/apple.txt"]="${CDN_MIRROR}/https://raw.githubusercontent.com/Loyalsoldier/v2ray-rules-dat/release/apple-cn.txt"
+    ["${SMARTDNS_DIR}/cn.txt"]="${CDN_MIRROR}/https://raw.githubusercontent.com/Loyalsoldier/v2ray-rules-dat/release/direct-list.txt"
+    ["${SMARTDNS_DIR}/reject.txt"]="${CDN_MIRROR}/https://raw.githubusercontent.com/Loyalsoldier/v2ray-rules-dat/release/reject-list.txt"
+    ["${SMARTDNS_DIR}/gfw.txt"]="${CDN_MIRROR}/https://raw.githubusercontent.com/Loyalsoldier/v2ray-rules-dat/release/gfw.txt"
 
     # chnroute ipset
-    ["${CHNROUTE_DIR}/chnroute.ipset"]="${CDN_MIRROR}/soffchen/GeoIP2-CN/raw/release/chnroute.ipset"
+    ["${CHNROUTE_DIR}/chnroute.ipset"]="${CDN_MIRROR}/https://raw.githubusercontent.com/soffchen/GeoIP2-CN/release/chnroute.ipset"
 )
 
 # 日志函数

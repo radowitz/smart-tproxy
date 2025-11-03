@@ -55,15 +55,15 @@ chmod +x manage.sh
        [Service]
        Type=oneshot
        RemainAfterExit=yes
-       # 等待 Docker 完全启动（增加延迟以确保容器就绪）
-       ExecStartPre=/bin/sleep 5
        ExecStart=/root/smart-tproxy/tproxy-iptables.sh
        ExecStop=/root/smart-tproxy/cleanup-iptables.sh
        StandardOutput=journal
        StandardError=journal
-       # 启动失败时自动重试
+       # 启动失败时自动重试（最多重试 3 次）
        Restart=on-failure
-       RestartSec=10s
+       RestartSec=15s
+       StartLimitBurst=3
+       StartLimitIntervalSec=120
 
        [Install]
        WantedBy=multi-user.target

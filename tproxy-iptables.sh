@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# 带完整等待和检查的 TPROXY 启动脚本
+
 set -e
 
 # 日志函数
@@ -8,9 +10,14 @@ log() {
     logger -t clash-tproxy "$1"
 }
 
-# 等待网络就绪
+log_error() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: $1" >&2
+    logger -t clash-tproxy "ERROR: $1"
+}
+
+# 等待网络就绪（最多等待 120 秒）
 wait_for_network() {
-    local max_wait=60
+    local max_wait=120
     local count=0
     log "等待网络就绪..."
     while [ $count -lt $max_wait ]; do
@@ -21,7 +28,55 @@ wait_for_network() {
         sleep 1
         ((count++))
     done
-    log "错误: 网络超时未就绪"
+    log_error "网络超时未就绪"
+    return 1
+}
+
+# 等待 Docker 服务就绪（最多等待 60 秒）
+wait_for_docker_service() {
+    local max_wait=60
+    local count=0
+    log "等待 Docker 服务启动..."
+
+    while [ $count -lt $max_wait ]; do
+        if systemctl is-active docker.service &>/dev/null; then
+            log "Docker 服务已启动"
+            sleep 3  # 额外等待确保完全就绪
+            return 0
+        fi
+        sleep 1
+        ((count++))
+    done
+
+    log_error "Docker 服务启动超时"
+    return 1
+}
+
+# 等待 Clash Meta 容器启动并监听端口（最多等待 60 秒）
+wait_for_clash_ready() {
+    local max_wait=60
+    local count=0
+    log "等待 Clash Meta 容器启动..."
+
+    while [ $count -lt $max_wait ]; do
+        # 检查容器是否运行
+        if docker ps --filter "name=clash-meta" --format "{{.Names}}" 2>/dev/null | grep -q "clash-meta"; then
+            log "Clash Meta 容器已运行"
+
+            # 检查端口是否监听
+            if ss -tlnp | grep -q ":7893"; then
+                log "Clash Meta 端口 7893 已监听"
+                sleep 2  # 额外等待确保完全就绪
+                return 0
+            else
+                log "等待端口 7893 监听..."
+            fi
+        fi
+        sleep 1
+        ((count++))
+    done
+
+    log_error "Clash Meta 容器或端口启动超时"
     return 1
 }
 
@@ -33,71 +88,51 @@ load_modules() {
     modprobe -q xt_mark 2>/dev/null || true
     modprobe -q ip_set 2>/dev/null || true
     modprobe -q ip_set_hash_net 2>/dev/null || true
+    log "内核模块加载完成"
 }
 
-# 加载 chnroute ipset（兼容格式）
+# 清理 nftables 规则
+cleanup_nftables() {
+    log "清理 nftables 规则（避免与 iptables 冲突）..."
+
+    if command -v nft &>/dev/null; then
+        local has_nft_rules=$(nft list ruleset 2>/dev/null | wc -l)
+
+        if [ "$has_nft_rules" -gt 0 ]; then
+            log "检测到 nftables 规则，清空以使用 iptables..."
+            nft flush ruleset 2>/dev/null || true
+            log "nftables 规则已清空"
+        else
+            log "没有 nftables 规则冲突"
+        fi
+    fi
+}
+
+# 加载 chnroute ipset
 load_chnroute() {
     local ipset_file="/root/smart-tproxy/chnroute.ipset"
 
     if [ ! -f "$ipset_file" ]; then
-        log "警告: $ipset_file 不存在"
+        log_error "$ipset_file 不存在"
         return 1
     fi
 
     log "加载 chnroute ipset..."
 
-    # 彻底销毁旧的 ipset（强制销毁，忽略错误）
+    # 销毁旧的 ipset
     ipset destroy chnroute -exist 2>/dev/null || true
     ipset destroy chnroute 2>/dev/null || true
-
-    # 等待一下确保完全销毁
     sleep 0.2
 
     # 加载新的 ipset
     if ipset restore -exist -f "$ipset_file" 2>/dev/null; then
-        log "chnroute ipset 加载成功 (直接恢复)"
-        return 0
-    fi
-
-    # 如果失败，尝试逐行解析
-    log "尝试手动解析 ipset 文件..."
-
-    # 创建 ipset
-    ipset create chnroute hash:net family inet hashsize 4096 maxelem 65536 2>/dev/null || true
-
-    # 读取并添加 IP 段
-    local count=0
-    while IFS= read -r line; do
-        # 跳过注释和空行
-        [[ "$line" =~ ^#.*$ ]] && continue
-        [[ -z "$line" ]] && continue
-
-        # 提取 add 命令中的 IP
-        if [[ "$line" =~ add[[:space:]]+chnroute[[:space:]]+([0-9./]+) ]]; then
-            local ip="${BASH_REMATCH[1]}"
-            ipset add chnroute "$ip" 2>/dev/null && ((count++))
-        fi
-    done < "$ipset_file"
-
-    if [ $count -gt 0 ]; then
+        local count=$(ipset list chnroute 2>/dev/null | grep -c "^[0-9]" || echo 0)
         log "chnroute ipset 加载成功: $count 条规则"
         return 0
-    else
-        log "错误: chnroute ipset 加载失败"
-        return 1
     fi
-}
 
-# 验证 ipset 是否加载
-verify_chnroute() {
-    if ipset list chnroute &>/dev/null; then
-        local count=$(ipset list chnroute | grep -c "^[0-9]" || echo 0)
-        log "验证通过: chnroute 包含 $count 条规则"
-        return 0
-    else
-        log "错误: chnroute ipset 不存在"
-        return 1
-    fi
+    log_error "chnroute ipset 加载失败"
+    return 1
 }
 
 # 配置路由策略
@@ -162,64 +197,38 @@ setup_iptables() {
     log "iptables TPROXY 规则配置完成"
 }
 
-# 清理 nftables 规则（Docker 可能创建的）
-cleanup_nftables() {
-    log "清理 nftables 规则（避免与 iptables 冲突）..."
-
-    # 检查是否有 nft 命令
-    if command -v nft &>/dev/null; then
-        # 检查是否有 nftables 规则
-        local has_nft_rules=$(nft list ruleset 2>/dev/null | wc -l)
-
-        if [ "$has_nft_rules" -gt 0 ]; then
-            log "检测到 nftables 规则，清空以使用 iptables..."
-            nft flush ruleset 2>/dev/null || true
-            log "nftables 规则已清空"
-        else
-            log "没有 nftables 规则冲突"
-        fi
-    fi
-}
-
-# 等待 Docker 容器启动
-wait_for_docker() {
-    log "等待 Docker 容器启动..."
-    local max_wait=30
-    local count=0
-
-    while [ $count -lt $max_wait ]; do
-        if docker ps --filter "name=clash-meta" --format "{{.Names}}" 2>/dev/null | grep -q "clash-meta"; then
-            log "Clash Meta 容器已启动"
-            # 再等待 2 秒确保容器完全就绪
-            sleep 2
-            return 0
-        fi
-        sleep 1
-        ((count++))
-    done
-
-    log "警告: Clash Meta 容器未检测到，继续配置规则..."
-    return 0
-}
-
 # 主函数
 main() {
-    log "开始配置 Clash 透明代理 (iptables)"
+    log "========== 开始配置 Clash 透明代理 (iptables) =========="
 
-    wait_for_network || exit 1
+    # 1. 等待网络就绪
+    if ! wait_for_network; then
+        log_error "网络未就绪，退出"
+        exit 1
+    fi
 
-    # 等待 Docker 容器启动
-    wait_for_docker
+    # 2. 等待 Docker 服务
+    if ! wait_for_docker_service; then
+        log_error "Docker 服务未就绪，退出"
+        exit 1
+    fi
 
-    # 清理可能存在的 nftables 规则
+    # 3. 等待 Clash Meta 容器和端口
+    if ! wait_for_clash_ready; then
+        log_error "Clash Meta 未就绪，退出"
+        exit 1
+    fi
+
+    # 4. 清理 nftables 规则
     cleanup_nftables
 
+    # 5. 加载内核模块
     load_modules
 
-    # 加载并验证 chnroute
+    # 6. 加载 chnroute
     local retry=0
     while [ $retry -lt 3 ]; do
-        if load_chnroute && verify_chnroute; then
+        if load_chnroute; then
             break
         fi
         ((retry++))
@@ -227,10 +236,19 @@ main() {
         sleep 2
     done
 
+    if ! ipset list chnroute &>/dev/null; then
+        log_error "chnroute 加载失败，退出"
+        exit 1
+    fi
+
+    # 7. 配置路由
     setup_routing
+
+    # 8. 配置 iptables
     setup_iptables
 
-    log "Clash 透明代理配置完成 (iptables)"
+    log "========== Clash 透明代理配置完成 (iptables) =========="
+    log "提示: 使用 'iptables -t mangle -L clash -n' 查看规则"
 }
 
 main

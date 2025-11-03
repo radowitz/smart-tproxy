@@ -15,7 +15,7 @@ CDN_MIRROR="https://hk.gh-proxy.com"
 # 下载源配置
 declare -A DOWNLOADS=(
     # GeoIP/GeoSite for Clash Meta
-    ["${CLASH_META_DIR}/GeoIP.dat"]="${CDN_MIRROR}/https://raw.githubusercontents.com/soffchen/geoip/release/geoip.dat"
+    ["${CLASH_META_DIR}/GeoIP.dat"]="${CDN_MIRROR}/https://raw.githubusercontent.com/soffchen/geoip/release/geoip.dat"
     ["${CLASH_META_DIR}/GeoSite.dat"]="${CDN_MIRROR}/https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat"
 
     # SmartDNS 规则列表

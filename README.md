@@ -49,17 +49,22 @@ chmod +x manage.sh
        [Unit]
        Description=Clash Transparent Proxy with iptables
        After=network-online.target docker.service
+       Requires=docker.service
        Wants=network-online.target
-       Before=network.target
+
        [Service]
        Type=oneshot
        RemainAfterExit=yes
+       # 等待 Docker 完全启动（增加延迟以确保容器就绪）
+       ExecStartPre=/bin/sleep 5
        ExecStart=/root/smart-tproxy/tproxy-iptables.sh
        ExecStop=/root/smart-tproxy/cleanup-iptables.sh
        StandardOutput=journal
        StandardError=journal
+       # 启动失败时自动重试
        Restart=on-failure
-       RestartSec=5s
+       RestartSec=10s
+
        [Install]
        WantedBy=multi-user.target
 
@@ -236,7 +241,7 @@ chmod +x manage.sh
 
 使用 `./manage.sh` 可以方便地管理所有功能：
 
-1. 完整安装（首次安装）
+1. 完整安装（首次安装，不包含定时更新）
 2. 启动所有服务
 3. 停止所有服务
 4. 重启所有服务
@@ -246,4 +251,6 @@ chmod +x manage.sh
 8. 手动更新全部规则文件
 9. 查看服务状态
 10. 查看服务日志
-11. 卸载全部服务
+11. 设置定时更新规则
+12. 取消定时更新规则
+13. 卸载全部服务

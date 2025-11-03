@@ -168,12 +168,38 @@ cleanup_nftables() {
 
     # 检查是否有 nft 命令
     if command -v nft &>/dev/null; then
-        # 保存当前规则集，检查是否有 Docker 创建的规则
-        if nft list ruleset 2>/dev/null | grep -q "managed by iptables-nft"; then
-            log "检测到 Docker 的 nftables 规则，清空以使用 iptables..."
+        # 检查是否有 nftables 规则
+        local has_nft_rules=$(nft list ruleset 2>/dev/null | wc -l)
+
+        if [ "$has_nft_rules" -gt 0 ]; then
+            log "检测到 nftables 规则，清空以使用 iptables..."
             nft flush ruleset 2>/dev/null || true
+            log "nftables 规则已清空"
+        else
+            log "没有 nftables 规则冲突"
         fi
     fi
+}
+
+# 等待 Docker 容器启动
+wait_for_docker() {
+    log "等待 Docker 容器启动..."
+    local max_wait=30
+    local count=0
+
+    while [ $count -lt $max_wait ]; do
+        if docker ps --filter "name=clash-meta" --format "{{.Names}}" 2>/dev/null | grep -q "clash-meta"; then
+            log "Clash Meta 容器已启动"
+            # 再等待 2 秒确保容器完全就绪
+            sleep 2
+            return 0
+        fi
+        sleep 1
+        ((count++))
+    done
+
+    log "警告: Clash Meta 容器未检测到，继续配置规则..."
+    return 0
 }
 
 # 主函数
@@ -181,6 +207,9 @@ main() {
     log "开始配置 Clash 透明代理 (iptables)"
 
     wait_for_network || exit 1
+
+    # 等待 Docker 容器启动
+    wait_for_docker
 
     # 清理可能存在的 nftables 规则
     cleanup_nftables

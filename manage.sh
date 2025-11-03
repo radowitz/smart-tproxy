@@ -140,14 +140,15 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-# 等待 Docker 完全启动
-ExecStartPre=/bin/sleep 3
+# 等待 Docker 完全启动（增加延迟以确保容器就绪）
+ExecStartPre=/bin/sleep 5
 ExecStart=${SCRIPT_DIR}/tproxy-iptables.sh
 ExecStop=${SCRIPT_DIR}/cleanup-iptables.sh
 StandardOutput=journal
 StandardError=journal
+# 启动失败时自动重试
 Restart=on-failure
-RestartSec=5s
+RestartSec=10s
 
 [Install]
 WantedBy=multi-user.target

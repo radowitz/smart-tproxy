@@ -23,39 +23,8 @@
 
        docker compose up -d
 
-   
-5. （如果使用nftables，直接略过步骤5转至步骤6，新系统更推荐）systemd服务文件管理chnroute载入和iptables
-   
- - 使脚本可执行
 
-       chmod +x chnroute.load.sh
-        
- - 创建 systemd 服务文件
-
-    nano /etc/systemd/system/chnroute-load.service  
-
-    在文件中添加以下内容：
-   
-       [Unit]  
-       Description=Load chnroute ipset rules  
-       After=network.target  
-       [Service]  
-       Type=oneshot  
-       ExecStart=/root/smart-tproxy/chnroute.load.sh  
-       RemainAfterExit=yes  
-       [Install]  
-       WantedBy=multi-user.target  
-
- - 启用服务，使其在开机时自动启动
-   
-       systemctl enable chnroute-load.service
-   
- - 启动服务（或者重启系统）
-    
-       systemctl start chnroute-load.service
-
-
-6. 使用nftables替代旧系统的iptables（可选，新系统更推荐）
+5. 使用 nftables 配置路由
     
  - systemd 服务 
 
@@ -133,7 +102,7 @@
        journalctl -u clash-tproxy.service --no-pager
 
 
-7. 自动更新 chnroute
+6. 自动更新 chnroute
 
  - systemd 服务 
 

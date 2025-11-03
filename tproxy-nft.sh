@@ -38,7 +38,7 @@ load_modules() {
 
 # 加载 chnroute ipset（兼容格式）
 load_chnroute() {
-    local ipset_file="/root/smart-tproxy/chnroute.ipset"
+    local ipset_file="/root/smartmeta/chnroute.ipset"
     
     if [ ! -f "$ipset_file" ]; then
         log "警告: $ipset_file 不存在"
@@ -120,12 +120,14 @@ setup_routing() {
 setup_nftables() {
     log "配置 nftables 规则..."
     
-    # 获取网卡名称
+    # 获取网卡名称和内网网段（排除 docker 等虚拟网卡）
     local eth_device=$(ip route | grep default | awk '{print $5}' | head -n1)
+    local lan_subnet=$(ip -4 addr show dev "$eth_device" | grep -oP 'inet \K[\d.]+/\d+' | head -n1)
     if [ -z "$eth_device" ]; then
         eth_device="eth0"
     fi
     log "使用网卡: $eth_device"
+    log "内网网段: $lan_subnet"
     
     # 清理旧规则
     nft delete table inet clash 2>/dev/null || true
@@ -142,20 +144,44 @@ table inet clash {
     chain prerouting {
         type filter hook prerouting priority mangle; policy accept;
         
-        # 跳过本地地址
-        ip daddr { 0.0.0.0/8, 10.0.0.0/8, 100.64.0.0/10, 127.0.0.0/8, 169.254.0.0/16, 172.16.0.0/12, 192.168.0.0/16, 224.0.0.0/4, 240.0.0.0/4 } return
+        # 跳过本地回环和 Docker 网卡
+        iifname "lo" return
+        iifname "docker0" return
+        iifname "br-*" return
+
+        # 跳过局域网通信（关键！）
+        ip daddr { 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16, 127.0.0.0/8, 224.0.0.0/4, 240.0.0.0/4 } return
+        ip saddr { 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16 } ip daddr { 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16 } return
         
-        # 跳过国内 IP (如果 ipset 存在)
+        # 跳过国内 IP
         ip daddr @chnroute return
+        
+        # 排除 Clash 自身流量（避免环路）
+        meta mark 255 return
         
         # TPROXY 重定向
         meta l4proto tcp tproxy to :7893 meta mark set 1 accept
         meta l4proto udp tproxy to :7893 meta mark set 1 accept
     }
     
+    chain output {
+        type route hook output priority mangle; policy accept;
+        
+        # 跳过本地流量
+        meta mark 255 return
+        ip daddr { 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16, 127.0.0.0/8, 224.0.0.0/4, 240.0.0.0/4 } return
+        
+        # 跳过国内 IP
+        ip daddr @chnroute return
+        
+        # 标记需要代理的流量
+        meta l4proto { tcp, udp } meta mark set 1
+    }
+    
     chain postrouting {
         type nat hook postrouting priority srcnat; policy accept;
-        oifname "$eth_device" masquerade
+        # 对外网流量做 NAT
+        oifname "$eth_device" ip daddr != { 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16 } masquerade
     }
 }
 EOF

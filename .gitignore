@@ -1,1 +1,22 @@
 .DS_Store
+
+# 忽略 meta 和 smartdns 文件夹的所有内容
+meta/
+smartdns/
+
+# 但保留示例配置文件（如果有的话）
+!meta/.gitkeep
+!smartdns/.gitkeep
+!meta/config.yaml.example
+!smartdns/smartdns.conf.example
+
+# 备份文件
+backups/
+*.bak
+*.tmp
+
+# 日志文件
+*.log
+
+# ipset 文件
+chnroute.ipset

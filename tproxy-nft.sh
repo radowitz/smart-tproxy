@@ -47,11 +47,15 @@ load_chnroute() {
     
     log "加载 chnroute ipset..."
     
-    # 删除旧的 ipset
+    # 彻底销毁旧的 ipset（强制销毁，忽略错误）
+    ipset destroy chnroute -exist 2>/dev/null || true
     ipset destroy chnroute 2>/dev/null || true
     
-    # 尝试直接恢复
-    if ipset restore -f "$ipset_file" 2>/dev/null; then
+    # 等待一下确保完全销毁
+    sleep 0.2
+    
+    # 加载新的 ipset
+    if ipset restore -exist -f "$ipset_file" 2>/dev/null; then
         log "chnroute ipset 加载成功 (直接恢复)"
         return 0
     fi

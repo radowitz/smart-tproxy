@@ -20,8 +20,13 @@ fi
 # 恢复 ipset
 echo "恢复 ipset 规则..."
 if [ -f /root/smart-tproxy/chnroute.ipset ]; then
-    ipset restore -f /root/smart-tproxy/chnroute.ipset 2>/dev/null || \
-    ipset restore < /root/smart-tproxy/chnroute.ipset
+    # 彻底销毁旧的 ipset（强制销毁，忽略错误）
+    ipset destroy chnroute -exist 2>/dev/null || true
+    ipset destroy chnroute 2>/dev/null || true
+    # 等待一下确保完全销毁
+    sleep 0.2
+    # 加载新的 ipset
+    ipset restore -exist -f /root/smart-tproxy/chnroute.ipset 2>/dev/null
 else
     echo "警告: chnroute.ipset 文件不存在"
 fi

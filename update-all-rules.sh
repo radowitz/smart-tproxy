@@ -9,8 +9,8 @@ CHNROUTE_DIR="/root/smart-tproxy"
 BACKUP_DIR="${CHNROUTE_DIR}/backups"
 LOG_FILE="/var/log/rules-update.log"
 
-# CDN 镜像 URL（使用 hub.gitmirror.com）
-CDN_MIRROR="https://hub.gitmirror.com/https://github.com"
+# CDN 镜像 URL（使用 hk.gh-proxy.com）
+CDN_MIRROR="https://hk.gh-proxy.com/https://github.com"
 
 # 下载源配置
 declare -A DOWNLOADS=(

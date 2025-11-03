@@ -129,26 +129,26 @@ full_install() {
 setup_systemd_services() {
     log "配置 systemd 服务..."
 
-    # 1. clash-tproxy 服务
+    # 1. clash-tproxy 服务（双重运行版本）
     cat > /etc/systemd/system/clash-tproxy.service << EOF
 [Unit]
-Description=Clash Transparent Proxy with iptables
-After=network-online.target docker.service
-Requires=docker.service
+Description=Clash Transparent Proxy with iptables (Double Run)
+After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
+# 第一次运行（可能失败，不退出）
+ExecStart=-${SCRIPT_DIR}/tproxy-iptables.sh
+# 等待 60 秒
+ExecStart=/bin/sleep 60
+# 第二次运行（确保成功）
 ExecStart=${SCRIPT_DIR}/tproxy-iptables.sh
 ExecStop=${SCRIPT_DIR}/cleanup-iptables.sh
 StandardOutput=journal
 StandardError=journal
-# 启动失败时自动重试（最多重试 3 次）
-Restart=on-failure
-RestartSec=15s
-StartLimitBurst=3
-StartLimitIntervalSec=120
+TimeoutStartSec=180
 
 [Install]
 WantedBy=multi-user.target

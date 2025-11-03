@@ -162,11 +162,29 @@ setup_iptables() {
     log "iptables TPROXY 规则配置完成"
 }
 
+# 清理 nftables 规则（Docker 可能创建的）
+cleanup_nftables() {
+    log "清理 nftables 规则（避免与 iptables 冲突）..."
+
+    # 检查是否有 nft 命令
+    if command -v nft &>/dev/null; then
+        # 保存当前规则集，检查是否有 Docker 创建的规则
+        if nft list ruleset 2>/dev/null | grep -q "managed by iptables-nft"; then
+            log "检测到 Docker 的 nftables 规则，清空以使用 iptables..."
+            nft flush ruleset 2>/dev/null || true
+        fi
+    fi
+}
+
 # 主函数
 main() {
     log "开始配置 Clash 透明代理 (iptables)"
 
     wait_for_network || exit 1
+
+    # 清理可能存在的 nftables 规则
+    cleanup_nftables
+
     load_modules
 
     # 加载并验证 chnroute

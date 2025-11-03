@@ -247,23 +247,3 @@ chmod +x manage.sh
 9. 查看服务状态
 10. 查看服务日志
 11. 卸载全部服务
-
-## 故障排查
-
-如果遇到问题，可以使用诊断脚本：
-
-```bash
-chmod +x debug-full.sh
-./debug-full.sh
-```
-
-或使用重置脚本：
-
-```bash
-chmod +x reset-all.sh
-./reset-all.sh
-```
-
-## 技术细节
-
-详细的 iptables 规则说明和故障排查请参考：[IPTABLES-VERSION.md](IPTABLES-VERSION.md)

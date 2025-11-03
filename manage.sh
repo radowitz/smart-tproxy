@@ -134,12 +134,14 @@ setup_systemd_services() {
 [Unit]
 Description=Clash Transparent Proxy with iptables
 After=network-online.target docker.service
+Requires=docker.service
 Wants=network-online.target
-Before=network.target
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
+# 等待 Docker 完全启动
+ExecStartPre=/bin/sleep 3
 ExecStart=${SCRIPT_DIR}/tproxy-iptables.sh
 ExecStop=${SCRIPT_DIR}/cleanup-iptables.sh
 StandardOutput=journal

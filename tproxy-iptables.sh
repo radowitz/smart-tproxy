@@ -28,10 +28,9 @@ wait_for_network() {
 # 加载内核模块
 load_modules() {
     log "加载必要的内核模块..."
-    modprobe -q nf_tables 2>/dev/null || true
-    modprobe -q nft_tproxy 2>/dev/null || true
-    modprobe -q nf_tproxy_ipv4 2>/dev/null || true
-    modprobe -q nft_socket 2>/dev/null || true
+    modprobe -q xt_TPROXY 2>/dev/null || true
+    modprobe -q xt_socket 2>/dev/null || true
+    modprobe -q xt_mark 2>/dev/null || true
     modprobe -q ip_set 2>/dev/null || true
     modprobe -q ip_set_hash_net 2>/dev/null || true
 }
@@ -39,47 +38,47 @@ load_modules() {
 # 加载 chnroute ipset（兼容格式）
 load_chnroute() {
     local ipset_file="/root/smart-tproxy/chnroute.ipset"
-    
+
     if [ ! -f "$ipset_file" ]; then
         log "警告: $ipset_file 不存在"
         return 1
     fi
-    
+
     log "加载 chnroute ipset..."
-    
+
     # 彻底销毁旧的 ipset（强制销毁，忽略错误）
     ipset destroy chnroute -exist 2>/dev/null || true
     ipset destroy chnroute 2>/dev/null || true
-    
+
     # 等待一下确保完全销毁
     sleep 0.2
-    
+
     # 加载新的 ipset
     if ipset restore -exist -f "$ipset_file" 2>/dev/null; then
         log "chnroute ipset 加载成功 (直接恢复)"
         return 0
     fi
-    
+
     # 如果失败，尝试逐行解析
     log "尝试手动解析 ipset 文件..."
-    
+
     # 创建 ipset
     ipset create chnroute hash:net family inet hashsize 4096 maxelem 65536 2>/dev/null || true
-    
+
     # 读取并添加 IP 段
     local count=0
     while IFS= read -r line; do
         # 跳过注释和空行
         [[ "$line" =~ ^#.*$ ]] && continue
         [[ -z "$line" ]] && continue
-        
+
         # 提取 add 命令中的 IP
         if [[ "$line" =~ add[[:space:]]+chnroute[[:space:]]+([0-9./]+) ]]; then
             local ip="${BASH_REMATCH[1]}"
             ipset add chnroute "$ip" 2>/dev/null && ((count++))
         fi
     done < "$ipset_file"
-    
+
     if [ $count -gt 0 ]; then
         log "chnroute ipset 加载成功: $count 条规则"
         return 0
@@ -104,113 +103,72 @@ verify_chnroute() {
 # 配置路由策略
 setup_routing() {
     log "配置路由策略..."
-    
+
     # 清理旧规则
     ip rule del fwmark 1 table 100 2>/dev/null || true
     ip route flush table 100 2>/dev/null || true
-    
+
     # 添加新规则
     ip rule add fwmark 1 table 100
     ip route add local 0.0.0.0/0 dev lo table 100
-    
+
     log "路由策略配置完成"
 }
 
-# 配置 nftables
-setup_nftables() {
-    log "配置 nftables 规则..."
+# 配置 iptables TPROXY 规则
+setup_iptables() {
+    log "配置 iptables TPROXY 规则..."
 
-    # 获取网卡名称和内网网段（排除 docker 等虚拟网卡）
+    # 获取网卡名称
     local eth_device=$(ip route | grep default | awk '{print $5}' | head -n1)
-    local lan_subnet=$(ip -4 addr show dev "$eth_device" | grep -oP 'inet \K[\d.]+/\d+' | head -n1)
     if [ -z "$eth_device" ]; then
         eth_device="eth0"
     fi
-    if [ -z "$lan_subnet" ]; then
-        lan_subnet="192.168.0.0/16"
-        log "警告: 无法获取内网网段，使用默认值"
-    fi
     log "使用网卡: $eth_device"
-    log "内网网段: $lan_subnet"
 
     # 清理旧规则
-    nft delete table inet clash 2>/dev/null || true
+    iptables -t mangle -D PREROUTING -j clash 2>/dev/null || true
+    iptables -t mangle -F clash 2>/dev/null || true
+    iptables -t mangle -X clash 2>/dev/null || true
+    iptables -t nat -D POSTROUTING -o $eth_device -j MASQUERADE 2>/dev/null || true
 
-    # 创建 nftables 规则（与 iptables 版本完全一致）
-    nft -f - << EOF
-table inet clash {
-    set chnroute {
-        type ipv4_addr
-        flags interval
-        auto-merge
-    }
+    # 创建 clash 链
+    iptables -t mangle -N clash
 
-    chain prerouting {
-        type filter hook prerouting priority mangle; policy accept;
+    # 添加保留地址规则
+    iptables -t mangle -A clash -d 0.0.0.0/8 -j RETURN
+    iptables -t mangle -A clash -d 10.0.0.0/8 -j RETURN
+    iptables -t mangle -A clash -d 100.64.0.0/10 -j RETURN
+    iptables -t mangle -A clash -d 127.0.0.0/8 -j RETURN
+    iptables -t mangle -A clash -d 169.254.0.0/16 -j RETURN
+    iptables -t mangle -A clash -d 172.16.0.0/12 -j RETURN
+    iptables -t mangle -A clash -d 192.168.0.0/16 -j RETURN
+    iptables -t mangle -A clash -d 224.0.0.0/4 -j RETURN
+    iptables -t mangle -A clash -d 240.0.0.0/4 -j RETURN
 
-        # 跳过保留地址（与 iptables 完全一致）
-        ip daddr 0.0.0.0/8 return
-        ip daddr 10.0.0.0/8 return
-        ip daddr 100.64.0.0/10 return
-        ip daddr 127.0.0.0/8 return
-        ip daddr 169.254.0.0/16 return
-        ip daddr 172.16.0.0/12 return
-        ip daddr 192.168.0.0/16 return
-        ip daddr 224.0.0.0/4 return
-        ip daddr 240.0.0.0/4 return
+    # 添加 chnroute 规则
+    iptables -t mangle -A clash -m set --match-set chnroute dst -j RETURN
 
-        # 跳过国内 IP（国内直连）
-        ip daddr @chnroute return
+    # 添加 TPROXY 规则
+    iptables -t mangle -A clash -p udp -j TPROXY --on-port 7893 --tproxy-mark 1
+    iptables -t mangle -A clash -p tcp -j TPROXY --on-port 7893 --tproxy-mark 1
 
-        # TPROXY 重定向到 Clash（只处理外网流量）
-        meta l4proto udp tproxy to :7893 meta mark set 1
-        meta l4proto tcp tproxy to :7893 meta mark set 1
-    }
+    # 应用到 PREROUTING 链
+    iptables -t mangle -A PREROUTING -j clash
 
-    chain postrouting {
-        type nat hook postrouting priority srcnat; policy accept;
+    # 添加 NAT 规则
+    iptables -t nat -A POSTROUTING -o $eth_device -j MASQUERADE
 
-        # 对出站流量做 NAT（与 iptables 一致）
-        oifname "$eth_device" masquerade
-    }
-}
-EOF
-
-    log "nftables 规则创建完成"
-}
-
-# 同步 ipset 到 nftables
-sync_ipset_to_nftables() {
-    if ! ipset list chnroute &>/dev/null; then
-        log "警告: ipset chnroute 不存在，跳过同步"
-        return 0
-    fi
-    
-    log "同步 ipset 到 nftables..."
-    
-    # 清空 nftables set
-    nft flush set inet clash chnroute 2>/dev/null || true
-    
-    # 批量添加 IP 到 nftables
-    local temp_file=$(mktemp)
-    ipset list chnroute | grep -E "^[0-9]" | awk '{print "add element inet clash chnroute { " $1 " }"}' > "$temp_file"
-    
-    if [ -s "$temp_file" ]; then
-        nft -f "$temp_file"
-        local count=$(wc -l < "$temp_file")
-        log "已同步 $count 条 chnroute 规则到 nftables"
-    fi
-    
-    rm -f "$temp_file"
+    log "iptables TPROXY 规则配置完成"
 }
 
 # 主函数
 main() {
-    log "开始配置 Clash 透明代理 (nftables)"
-    
+    log "开始配置 Clash 透明代理 (iptables)"
+
     wait_for_network || exit 1
     load_modules
-    
+
     # 加载并验证 chnroute
     local retry=0
     while [ $retry -lt 3 ]; do
@@ -221,12 +179,11 @@ main() {
         log "重试加载 chnroute ($retry/3)..."
         sleep 2
     done
-    
+
     setup_routing
-    setup_nftables
-    sync_ipset_to_nftables
-    
-    log "Clash 透明代理配置完成"
+    setup_iptables
+
+    log "Clash 透明代理配置完成 (iptables)"
 }
 
 main

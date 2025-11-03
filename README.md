@@ -4,8 +4,22 @@
  - 基于 chnroute 进行国内外 IP 分流
  - 基于 smartdns 进行国内外 DNS 分流
  - 基于 Clash-Meta 的 sniff 嗅探功能进行策略组分流（RULESET+GEOSITE+GEOIP）
+ - 使用 iptables 实现透明代理（兼容性更好）
 
-## 安装步骤
+## 快速开始（推荐）
+
+使用一键管理脚本：
+
+```bash
+chmod +x manage.sh
+./manage.sh
+```
+
+选择选项 1 进行完整安装，脚本会自动完成所有配置。
+
+---
+
+## 手动安装步骤
 
 1. 开启内核转发和BBR CAKE，安装必要软件
 
@@ -24,24 +38,24 @@
        docker compose up -d
 
 
-5. 使用 nftables 配置路由
-    
- - systemd 服务 
+5. 使用 iptables 配置路由
+
+ - systemd 服务
 
        nano /etc/systemd/system/clash-tproxy.service
 
     在文件中添加以下内容：
 
        [Unit]
-       Description=Clash Transparent Proxy with nftables
-       After=network-online.target nftables.service
+       Description=Clash Transparent Proxy with iptables
+       After=network-online.target docker.service
        Wants=network-online.target
        Before=network.target
        [Service]
        Type=oneshot
        RemainAfterExit=yes
-       ExecStart=/root/smart-tproxy/tproxy-nft.sh
-       ExecStop=/root/smart-tproxy/cleanup-nft.sh
+       ExecStart=/root/smart-tproxy/tproxy-iptables.sh
+       ExecStop=/root/smart-tproxy/cleanup-iptables.sh
        StandardOutput=journal
        StandardError=journal
        Restart=on-failure
@@ -49,44 +63,44 @@
        [Install]
        WantedBy=multi-user.target
 
- - 内核模块自动加载 
+ - 内核模块自动加载
 
        nano /etc/modules-load.d/clash-tproxy.conf
-        
-    在文件中添加以下内容：    
 
-       nf_tables
-       nft_tproxy
-       nf_tproxy_ipv4
-       nft_socket
+    在文件中添加以下内容：
+
+       xt_TPROXY
+       xt_socket
+       xt_mark
        ip_set
        ip_set_hash_net
 
  - 赋予执行权限
-   
-       chmod +x /root/smart-tproxy/tproxy-nft.sh
-       chmod +x /root/smart-tproxy/cleanup-nft.sh
+
+       chmod +x /root/smart-tproxy/tproxy-iptables.sh
+       chmod +x /root/smart-tproxy/cleanup-iptables.sh
 
  - 重载 systemd
-   
+
        systemctl daemon-reload
 
  - 启用并启动服务
-   
+
        systemctl enable clash-tproxy.service
        systemctl start clash-tproxy.service
 
  - 查看状态
-   
+
        systemctl status clash-tproxy.service
 
  - 查看日志
 
        journalctl -u clash-tproxy.service -f
 
- - 检查 nftables 规则
+ - 检查 iptables 规则
 
-       nft list ruleset
+       iptables -t mangle -L clash -n -v
+       iptables -t nat -L POSTROUTING -n -v
 
  - 检查 ipset
 
@@ -150,7 +164,7 @@
 
     在文件中添加以下内容:
 
-       /var/log/chnroute-update.log {
+       /var/log/rules-update.log {
            daily
            missingok
            rotate 30
@@ -195,7 +209,7 @@
 
     或
 
-       tail -f /var/log/chnroute-update.log
+       tail -f /var/log/rules-update.log
 
 ## 控制面板
 
@@ -210,3 +224,46 @@
  - 后端密码：
 
        smart-tproxy
+
+## 局域网设备配置
+
+将局域网设备的网关和 DNS 设置为 Debian 服务器的 IP 地址，即可自动享受透明代理：
+
+ - 网关：192.168.x.x（Debian 服务器 IP）
+ - DNS：192.168.x.x（Debian 服务器 IP）
+
+## 管理脚本功能
+
+使用 `./manage.sh` 可以方便地管理所有功能：
+
+1. 完整安装（首次安装）
+2. 启动所有服务
+3. 停止所有服务
+4. 重启所有服务
+5. 重启 Meta (Clash)
+6. 重启 SmartDNS
+7. 手动更新 chnroute
+8. 手动更新全部规则文件
+9. 查看服务状态
+10. 查看服务日志
+11. 卸载全部服务
+
+## 故障排查
+
+如果遇到问题，可以使用诊断脚本：
+
+```bash
+chmod +x debug-full.sh
+./debug-full.sh
+```
+
+或使用重置脚本：
+
+```bash
+chmod +x reset-all.sh
+./reset-all.sh
+```
+
+## 技术细节
+
+详细的 iptables 规则说明和故障排查请参考：[IPTABLES-VERSION.md](IPTABLES-VERSION.md)

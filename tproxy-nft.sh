@@ -38,7 +38,7 @@ load_modules() {
 
 # 加载 chnroute ipset（兼容格式）
 load_chnroute() {
-    local ipset_file="/root/smartmeta/chnroute.ipset"
+    local ipset_file="/root/smart-tproxy/chnroute.ipset"
     
     if [ ! -f "$ipset_file" ]; then
         log "警告: $ipset_file 不存在"

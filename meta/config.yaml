@@ -114,6 +114,7 @@ tcp-concurrent: true
 # 外部控制
 external-controller: 0.0.0.0:28001
 secret: smart-tproxy
+routing-mark: 255
 
 geodata-mode: true
 

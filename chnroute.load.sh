@@ -72,6 +72,10 @@ iptables -t mangle -A clash -p tcp -j TPROXY --on-port 7893 --tproxy-mark 1
 # 应用规则
 iptables -t mangle -A PREROUTING -j clash
 
+# Debian 本机发出的流量也走 Clash
+iptables -t mangle -A OUTPUT -p tcp -j clash
+iptables -t mangle -A OUTPUT -p udp -j clash
+
 # NAT 规则 (自动检测网卡)
 ETH_DEVICE=$(ip route | grep default | awk '{print $5}' | head -n1)
 if [ -z "$ETH_DEVICE" ]; then

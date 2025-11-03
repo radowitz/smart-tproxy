@@ -59,7 +59,10 @@ show_menu() {
     echo -e "${GREEN}9.${NC}  查看服务状态"
     echo -e "${GREEN}10.${NC} 查看服务日志"
     echo ""
-    echo -e "${GREEN}11.${NC} 卸载全部服务"
+    echo -e "${GREEN}11.${NC} 设置定时更新规则"
+    echo -e "${GREEN}12.${NC} 取消定时更新规则"
+    echo ""
+    echo -e "${GREEN}13.${NC} 卸载全部服务"
     echo ""
     echo -e "${GREEN}0.${NC}  退出"
     echo -e "${BLUE}================================================${NC}"
@@ -212,11 +215,10 @@ EOF
     # 重载 systemd
     systemctl daemon-reload
 
-    # 启用服务
+    # 只启用 clash-tproxy 服务，不自动启用定时器
     systemctl enable clash-tproxy.service
-    systemctl enable update-all-rules.timer
 
-    log "systemd 服务配置完成"
+    log "systemd 服务配置完成（定时更新未启用，可通过菜单选项 11 启用）"
 }
 
 # 2. 启动所有服务
@@ -232,8 +234,11 @@ start_all_services() {
     log_info "启动透明代理服务..."
     systemctl start clash-tproxy.service
 
-    # 启动定时器
-    systemctl start update-all-rules.timer
+    # 检查定时器是否已启用，如果启用则启动
+    if systemctl is-enabled update-all-rules.timer &>/dev/null; then
+        log_info "启动定时更新定时器..."
+        systemctl start update-all-rules.timer
+    fi
 
     log "${GREEN}所有服务已启动${NC}"
     sleep 2
@@ -477,7 +482,85 @@ show_logs() {
     esac
 }
 
-# 11. 卸载全部服务
+# 11. 设置定时更新规则
+setup_auto_update() {
+    clear
+    echo -e "${BLUE}================================================${NC}"
+    echo -e "${BLUE}          设置定时更新规则${NC}"
+    echo -e "${BLUE}================================================${NC}"
+    echo ""
+
+    # 检查服务文件是否存在
+    if [ ! -f /etc/systemd/system/update-all-rules.timer ]; then
+        log_error "定时器服务文件不存在"
+        log_info "请先运行完整安装（选项 1）"
+        sleep 3
+        return
+    fi
+
+    # 检查是否已启用
+    if systemctl is-enabled update-all-rules.timer &>/dev/null; then
+        log_warning "定时更新规则已经启用"
+        echo ""
+        log_info "当前定时器状态："
+        systemctl status update-all-rules.timer --no-pager || true
+        echo ""
+        log_info "下次更新时间："
+        systemctl list-timers update-all-rules.timer --no-pager || true
+        echo ""
+        read -p "按任意键继续..." -n 1 -r
+        return
+    fi
+
+    log "启用定时更新规则..."
+
+    # 启用并启动定时器
+    systemctl enable update-all-rules.timer
+    systemctl start update-all-rules.timer
+
+    log "${GREEN}定时更新规则已启用${NC}"
+    echo ""
+    log_info "定时器配置："
+    log_info "  - 每天凌晨 3 点执行"
+    log_info "  - 开机后 5 分钟执行一次"
+    log_info "  - 随机延迟 0-30 分钟"
+    echo ""
+    log_info "下次更新时间："
+    systemctl list-timers update-all-rules.timer --no-pager || true
+    echo ""
+
+    read -p "按任意键继续..." -n 1 -r
+}
+
+# 12. 取消定时更新规则
+disable_auto_update() {
+    clear
+    echo -e "${BLUE}================================================${NC}"
+    echo -e "${BLUE}          取消定时更新规则${NC}"
+    echo -e "${BLUE}================================================${NC}"
+    echo ""
+
+    # 检查是否已启用
+    if ! systemctl is-enabled update-all-rules.timer &>/dev/null; then
+        log_warning "定时更新规则未启用，无需取消"
+        sleep 2
+        return
+    fi
+
+    log "取消定时更新规则..."
+
+    # 停止并禁用定时器
+    systemctl stop update-all-rules.timer
+    systemctl disable update-all-rules.timer
+
+    log "${GREEN}定时更新规则已取消${NC}"
+    log_info "注意：您仍可以通过选项 8 手动更新规则"
+    echo ""
+
+    read -p "按任意键继续..." -n 1 -r
+}
+
+# 13. 卸载全部服务
 uninstall_all() {
     clear
     echo -e "${RED}================================================${NC}"
@@ -558,7 +641,7 @@ main() {
 
     while true; do
         show_menu
-        read -p "请选择操作 [0-11]: " choice
+        read -p "请选择操作 [0-13]: " choice
         echo ""
 
         case $choice in
@@ -593,6 +676,12 @@ main() {
                 show_logs
                 ;;
             11)
+                setup_auto_update
+                ;;
+            12)
+                disable_auto_update
+                ;;
+            13)
                 uninstall_all
                 ;;
             0)

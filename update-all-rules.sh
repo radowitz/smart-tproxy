@@ -1,6 +1,7 @@
 #!/bin/bash
 
-set -e
+# 移除 set -e，允许部分文件下载失败时继续执行
+# set -e
 
 # 配置路径
 SMARTDNS_DIR="/root/smart-tproxy/smartdns"
@@ -53,7 +54,8 @@ download_file() {
 
     log "下载: $(basename "$target_file")..." >&2
 
-    if curl -fsSL --connect-timeout 10 --max-time 60 "$url" -o "$temp_file"; then
+    # 增加超时时间，某些文件较大
+    if curl -fsSL --connect-timeout 15 --max-time 180 "$url" -o "$temp_file"; then
         if [ -s "$temp_file" ]; then
             local size=$(du -h "$temp_file" | cut -f1)
             log "  成功，大小: $size" >&2
@@ -266,10 +268,11 @@ main() {
     update_files
     local update_status=$?
 
-    # 重新加载 ipset/nftables
-    if [ $update_status -eq 0 ]; then
-        reload_ipset
-        reload_nftables
+    # 即使部分文件下载失败，也尝试重新加载已有的配置
+    if [ $update_status -eq 0 ] || [ $update_status -eq 1 ]; then
+        reload_ipset || log_error "ipset 重新加载失败（非致命）"
+        # nftables 同步（如果使用 nftables 的话，自动检测）
+        reload_nftables || true
     fi
 
     # 重启 Docker 容器
@@ -278,19 +281,22 @@ main() {
     # 清理旧备份
     cleanup_backups
 
-    # 发送通知
+    # 发送通知和退出
     case $update_status in
         0)
             send_notification "规则文件更新成功"
             log "========== 更新完成 =========="
+            exit 0
             ;;
         1)
-            send_notification "规则文件更新失败"
-            log_error "========== 更新失败 =========="
-            exit 1
+            send_notification "规则文件部分更新失败"
+            log_error "========== 部分文件更新失败（非致命错误）=========="
+            # 即使部分失败，也返回成功，避免 systemd 标记为失败
+            exit 0
             ;;
         2)
             log "========== 无需更新 =========="
+            exit 0
             ;;
     esac
 }

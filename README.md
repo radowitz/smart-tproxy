@@ -30,9 +30,9 @@
 
        nano /etc/systemd/system/clash-tproxy.service
 
-    在文件中添加以下内容：    
+    在文件中添加以下内容：
 
-       [unit]
+       [Unit]
        Description=Clash Transparent Proxy with nftables
        After=network-online.target nftables.service
        Wants=network-online.target
@@ -102,33 +102,33 @@
        journalctl -u clash-tproxy.service --no-pager
 
 
-6. 自动更新 chnroute
+6. 自动更新规则
 
- - systemd 服务 
+ - systemd 服务
 
-       nano /etc/systemd/system/chnroute-update.service
+       nano /etc/systemd/system/update-all-rules.service
 
-    在文件中添加以下内容：    
+    在文件中添加以下内容：
 
        [Unit]
-       Description=Update chnroute ipset from remote source
+       Description=Update all rules (chnroute ipset) from remote source
        After=network-online.target
        Wants=network-online.target
 
        [Service]
        Type=oneshot
-       ExecStart=/root/smart-tproxy/update-chnroute.sh
+       ExecStart=/root/smart-tproxy/update-all-rules.sh
        StandardOutput=journal
        StandardError=journal
 
- - systemd 定时器 
+ - systemd 定时器
 
-       nano /etc/systemd/system/chnroute-update.timer
+       nano /etc/systemd/system/update-all-rules.timer
 
-    在文件中添加以下内容：    
+    在文件中添加以下内容：
 
        [Unit]
-       Description=Update chnroute ipset daily
+       Description=Update all rules daily
 
        [Timer]
        # 每天凌晨 3 点执行
@@ -146,10 +146,10 @@
 
  - 日志轮转配置
 
-       nano /etc/logrotate.d/chnroute-update
+       nano /etc/logrotate.d/update-all-rules
 
-    在文件中添加以下内容：
-   
+    在文件中添加以下内容:
+
        /var/log/chnroute-update.log {
            daily
            missingok
@@ -162,39 +162,39 @@
 
  - 赋予执行权限
 
-       chmod +x /root/smart-tproxy/update-chnroute.sh
+       chmod +x /root/smart-tproxy/update-all-rules.sh
 
  - 手动测试执行
-   
-       /root/smart-tproxy/update-chnroute.sh
+
+       /root/smart-tproxy/update-all-rules.sh
 
  - 重载 systemd
-   
+
        systemctl daemon-reload
 
  - 启用定时器
 
-       systemctl enable chnroute-update.timer
-       systemctl start chnroute-update.timer
+       systemctl enable update-all-rules.timer
+       systemctl start update-all-rules.timer
 
  - 查看定时器状态
-   
-       systemctl status chnroute-update.timer
+
+       systemctl status update-all-rules.timer
 
  - 查看下次执行时间
-   
-       systemctl list-timers chnroute-update.timer
+
+       systemctl list-timers update-all-rules.timer
 
  - 手动触发更新
 
-       systemctl start chnroute-update.service
+       systemctl start update-all-rules.service
 
  - 查看更新日志
-   
-       journalctl -u chnroute-update.service -f
+
+       journalctl -u update-all-rules.service -f
 
     或
-   
+
        tail -f /var/log/chnroute-update.log
 
 ## 控制面板

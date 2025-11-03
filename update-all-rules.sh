@@ -3,8 +3,8 @@
 set -e
 
 REMOTE_URL="https://cdn.jsdelivr.net/gh/soffchen/GeoIP2-CN@release/chnroute.ipset"
-LOCAL_FILE="/root/smartmeta/chnroute.ipset"
-BACKUP_DIR="/root/smartmeta/backups"
+LOCAL_FILE="/root/smart-tproxy/chnroute.ipset"
+BACKUP_DIR="/root/smart-tproxy/backups"
 LOG_FILE="/var/log/chnroute-update.log"
 
 # 日志函数

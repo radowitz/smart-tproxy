@@ -24,7 +24,7 @@
        docker compose up -d
 
    
-5. （如果使用nftables，直接略过步骤5转至步骤6）systemd服务文件管理chnroute载入和iptables
+5. （如果使用nftables，直接略过步骤5转至步骤6，新系统更推荐）systemd服务文件管理chnroute载入和iptables
    
  - 使脚本可执行
 
@@ -132,7 +132,100 @@
 
        journalctl -u clash-tproxy.service --no-pager
 
-        
+
+7. 自动更新 chnroute
+
+ - systemd 服务 
+
+       nano /etc/systemd/system/chnroute-update.service
+
+    在文件中添加以下内容：    
+
+       [Unit]
+       Description=Update chnroute ipset from remote source
+       After=network-online.target
+       Wants=network-online.target
+
+       [Service]
+       Type=oneshot
+       ExecStart=/root/smart-tproxy/update-chnroute.sh
+       StandardOutput=journal
+       StandardError=journal
+
+ - systemd 定时器 
+
+       nano /etc/systemd/system/chnroute-update.timer
+
+    在文件中添加以下内容：    
+
+       [Unit]
+       Description=Update chnroute ipset daily
+
+       [Timer]
+       # 每天凌晨 3 点执行
+       OnCalendar=daily
+       OnCalendar=03:00
+       # 如果错过执行时间，立即执行
+       Persistent=true
+       # 随机延迟 0-30 分钟，避免集中访问
+       RandomizedDelaySec=30min
+
+       [Install]
+       WantedBy=timers.target
+
+ - 日志轮转配置
+
+       nano /etc/logrotate.d/chnroute-update
+
+    在文件中添加以下内容：
+   
+       /var/log/chnroute-update.log {
+           daily
+           missingok
+           rotate 30
+           compress
+           delaycompress
+           notifempty
+           create 0640 root root
+       }
+
+ - 赋予执行权限
+
+       chmod +x /root/smart-tproxy/update-chnroute.sh
+
+ - 手动测试执行
+   
+       /root/smart-tproxy/update-chnroute.sh
+
+ - 重载 systemd
+   
+       systemctl daemon-reload
+
+ - 启用定时器
+
+       systemctl enable chnroute-update.timer
+       systemctl start chnroute-update.timer
+
+ - 查看定时器状态
+   
+       systemctl status chnroute-update.timer
+
+ - 查看下次执行时间
+   
+       systemctl list-timers chnroute-update.timer
+
+ - 手动触发更新
+
+       systemctl start chnroute-update.service
+
+ - 查看更新日志
+   
+       journalctl -u chnroute-update.service -f
+
+    或
+   
+       tail -f /var/log/chnroute-update.log
+
 ## 控制面板
 
  - 访问地址
